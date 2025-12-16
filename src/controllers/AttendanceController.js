@@ -1,10 +1,10 @@
-const Attendance = require('../models/attendance-models');
+const Attendance = require('../models/AttendanceModels');
 
 const {
     getTanggalAbsensi,
     cekStatusMasuk,
     isWaktuPresensiValid
-} = require('../helpers/attendanceHelper');
+} = require('../helpers/AttendanceHelper');
 
 /**
  * =========================

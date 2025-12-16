@@ -13,8 +13,8 @@ const HOST = '0.0.0.0';
 // =======================
 // IMPORT ROUTES
 // =======================
-const userRoutes = require('./src/routes/user-routes');
-const attendanceRoutes = require('./src/routes/attendance-routes');
+const userRoutes = require('./src/routes/UserRoutes');
+const attendanceRoutes = require('./src/routes/AttendanceRoutes');
 
 // =======================
 // MIDDLEWARE GLOBAL
@@ -28,7 +28,7 @@ app.use(express.urlencoded({ extended: true }));
 // =======================
 app.use(
     '/presensi',
-    express.static(path.join(__dirname, 'src/public/presensi'))
+    express.static(path.join(__dirname, './src/presensi'))
 );
 
 // =======================
