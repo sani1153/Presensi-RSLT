@@ -1,4 +1,7 @@
 const Attendance = require('../models/AttendanceModels');
+const { isDalamRadiusRS } = require('../helpers/LocationHelper');
+const { validasiLiveness } = require('../helpers/FaceLivenessHelper');
+const saveFaceImage = require('../utils/saveFaceImage');
 
 const {
     getTanggalAbsensi,
@@ -13,20 +16,46 @@ const {
  */
 exports.presensiMasuk = async (req, res) => {
     try {
-        const { id_users, shift, shift_detail, foto_path } = req.body;
+        // 🔐 Data user dari JWT
+        const { id_users, shift, shift_detail } = req.user;
 
-        // 1. Validasi waktu presensi masuk
+        const {
+            foto_base64,
+            liveness_score,
+            latitude,
+            longitude
+        } = req.body;
+
+        // 0. Validasi liveness (anti foto / video)
+        const live = validasiLiveness(liveness_score);
+        if (!live.valid) {
+            return res.status(403).json({
+                message: 'Verifikasi wajah gagal',
+                reason: live.reason
+            });
+        }
+
+        // 1. Validasi lokasi RS
+        const lokasi = isDalamRadiusRS(latitude, longitude);
+        if (!lokasi.valid) {
+            return res.status(403).json({
+                message: 'Anda berada di luar area Rumah Sakit',
+                jarak_meter: lokasi.jarak
+            });
+        }
+
+        // 2. Validasi waktu presensi masuk
         if (!isWaktuPresensiValid(shift, 'masuk')) {
             return res.status(400).json({
                 message: 'Belum waktunya presensi masuk'
             });
         }
 
-        // 2. Tentukan tanggal absensi
-        const tanggal_absensi = getTanggalAbsensi(shift);
+        // 3. Tentukan tanggal absensi (aware shift malam)
+        const tanggal_absensi = getTanggalAbsensi(shift, 'masuk');
 
-        // 3. Cegah presensi dobel
-        const cek = await Attendance.findOne({
+        // 4. Cegah presensi masuk dobel
+        const sudahMasuk = await Attendance.findOne({
             where: {
                 id_users,
                 tanggal_absensi,
@@ -34,21 +63,26 @@ exports.presensiMasuk = async (req, res) => {
             }
         });
 
-        if (cek) {
+        if (sudahMasuk) {
             return res.status(400).json({
                 message: 'Presensi masuk sudah dilakukan'
             });
         }
 
-        // 4. Tentukan status (tepat / terlambat)
+        // 5. Hitung status masuk
         const status = cekStatusMasuk(shift, shift_detail);
         const waktu = new Date().toTimeString().slice(0, 8);
 
-        // 5. Simpan presensi
+        // 6. Simpan foto
+        const filename = `${id_users}_${tanggal_absensi}_masuk_${Date.now()}.jpg`;
+        const foto_path = saveFaceImage(foto_base64, filename);
+
+        // 7. Simpan presensi masuk
         await Attendance.create({
             id_users,
             tanggal_absensi,
             shift,
+            shift_detail,
             mode: 'masuk',
             waktu,
             status,
@@ -65,6 +99,7 @@ exports.presensiMasuk = async (req, res) => {
     }
 };
 
+
 /**
  * =========================
  * PRESENSI PULANG
@@ -72,20 +107,61 @@ exports.presensiMasuk = async (req, res) => {
  */
 exports.presensiPulang = async (req, res) => {
     try {
-        const { id_users, shift, foto_path } = req.body;
+        // 🔐 Data user dari JWT
+        const { id_users, shift, shift_detail } = req.user;
 
-        // 1. Validasi waktu presensi pulang
+        const {
+            foto_base64,
+            liveness_score,
+            latitude,
+            longitude
+        } = req.body;
+
+        // 0. Validasi liveness
+        const live = validasiLiveness(liveness_score);
+        if (!live.valid) {
+            return res.status(403).json({
+                message: 'Verifikasi wajah gagal',
+                reason: live.reason
+            });
+        }
+
+        // 1. Validasi lokasi RS
+        const lokasi = isDalamRadiusRS(latitude, longitude);
+        if (!lokasi.valid) {
+            return res.status(403).json({
+                message: 'Anda berada di luar area Rumah Sakit',
+                jarak_meter: lokasi.jarak
+            });
+        }
+
+        // 2. Validasi waktu presensi pulang
         if (!isWaktuPresensiValid(shift, 'pulang')) {
             return res.status(400).json({
                 message: 'Belum waktunya presensi pulang'
             });
         }
 
-        // 2. Tentukan tanggal absensi
-        const tanggal_absensi = getTanggalAbsensi(shift);
+        // 3. Tentukan tanggal absensi (sama dengan masuk)
+        const tanggal_absensi = getTanggalAbsensi(shift, 'pulang');
 
-        // 3. Cegah presensi dobel
-        const cek = await Attendance.findOne({
+        // 4. Wajib sudah presensi masuk
+        const sudahMasuk = await Attendance.findOne({
+            where: {
+                id_users,
+                tanggal_absensi,
+                mode: 'masuk'
+            }
+        });
+
+        if (!sudahMasuk) {
+            return res.status(400).json({
+                message: 'Belum melakukan presensi masuk'
+            });
+        }
+
+        // 5. Cegah presensi pulang dobel
+        const sudahPulang = await Attendance.findOne({
             where: {
                 id_users,
                 tanggal_absensi,
@@ -93,7 +169,7 @@ exports.presensiPulang = async (req, res) => {
             }
         });
 
-        if (cek) {
+        if (sudahPulang) {
             return res.status(400).json({
                 message: 'Presensi pulang sudah dilakukan'
             });
@@ -101,11 +177,16 @@ exports.presensiPulang = async (req, res) => {
 
         const waktu = new Date().toTimeString().slice(0, 8);
 
-        // 4. Simpan presensi pulang
+        // 6. Simpan foto
+        const filename = `${id_users}_${tanggal_absensi}_pulang_${Date.now()}.jpg`;
+        const foto_path = saveFaceImage(foto_base64, filename);
+
+        // 7. Simpan presensi pulang
         await Attendance.create({
             id_users,
             tanggal_absensi,
             shift,
+            shift_detail,
             mode: 'pulang',
             waktu,
             status: 'tepat_waktu',

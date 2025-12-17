@@ -9,7 +9,6 @@ exports.getAllUsers = async (req, res) => {
         const users = await Users.findAll({
             attributes: { exclude: ['password'] }
         });
-
         res.json(users);
     } catch (error) {
         res.status(500).json({ message: error.message });
@@ -25,9 +24,14 @@ exports.createUser = async (req, res) => {
             username,
             nikrs,
             password,
-            shift_jenis,
+            shift,
             shift_detail
         } = req.body;
+
+        // validasi shift
+        if (!['pagi', 'siang', 'malam'].includes(shift)) {
+            return res.status(400).json({ message: 'Shift tidak valid' });
+        }
 
         const cekNik = await Users.findOne({ where: { nikrs } });
         if (cekNik) {
@@ -42,7 +46,7 @@ exports.createUser = async (req, res) => {
             username,
             nikrs,
             password: hashPassword,
-            shift_jenis,
+            shift,
             shift_detail
         });
 
@@ -67,10 +71,6 @@ exports.login = async (req, res) => {
             return res.status(401).json({ message: 'NIK RS tidak ditemukan' });
         }
 
-        if (!user.is_active) {
-            return res.status(403).json({ message: 'Akun tidak aktif' });
-        }
-
         const valid = await bcrypt.compare(password, user.password);
         if (!valid) {
             return res.status(401).json({ message: 'Password salah' });
@@ -82,7 +82,7 @@ exports.login = async (req, res) => {
                 id_users: user.id_users,
                 username: user.username,
                 nikrs: user.nikrs,
-                shift_jenis: user.shift_jenis,
+                shift: user.shift,
                 shift_detail: user.shift_detail
             }
         });

@@ -23,6 +23,12 @@ const Attendance = db.define('attendance', {
         allowNull: false
     },
 
+    shift_detail: {
+        type: DataTypes.STRING,
+        allowNull: false
+        // contoh: pagi_1, pagi_2, pagi_3, siang_1, malam_1
+    },
+
     mode: {
         type: DataTypes.ENUM('masuk', 'pulang'),
         allowNull: false
@@ -41,7 +47,18 @@ const Attendance = db.define('attendance', {
     foto_path: {
         type: DataTypes.STRING,
         allowNull: false
+    },
+
+    liveness_score: {
+        type: DataTypes.FLOAT,
+        allowNull: false
+    },
+
+    challenge: {
+        type: DataTypes.STRING,
+        allowNull: true
     }
+
 }, {
     freezeTableName: true,
     timestamps: true

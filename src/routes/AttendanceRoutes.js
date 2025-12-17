@@ -2,11 +2,9 @@ const express = require('express');
 const router = express.Router();
 
 const AttendanceController = require('../controllers/AttendanceController');
+const authMiddleware = require('../middleware/AuthMiddleware');
 
-// Presensi masuk
-router.post('/public/presensi-masuk', AttendanceController.presensiMasuk);
-
-// Presensi pulang
-router.post('/public/presensi-pulang', AttendanceController.presensiPulang);
+router.post('/masuk', authMiddleware, AttendanceController.presensiMasuk);
+router.post('/pulang', authMiddleware, AttendanceController.presensiPulang);
 
 module.exports = router;
