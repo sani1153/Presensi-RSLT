@@ -17,7 +17,7 @@ const {
 exports.presensiMasuk = async (req, res) => {
     try {
         // 🔐 Data user dari JWT
-        const { id_users, shift, shift_detail } = req.user;
+        const { id_users, nikrs, shift, shift_detail } = req.user;
 
         const {
             foto_base64,
@@ -51,7 +51,7 @@ exports.presensiMasuk = async (req, res) => {
             });
         }
 
-        // 3. Tentukan tanggal absensi (aware shift malam)
+        // 3. Tentukan tanggal absensi
         const tanggal_absensi = getTanggalAbsensi(shift, 'masuk');
 
         // 4. Cegah presensi masuk dobel
@@ -73,9 +73,8 @@ exports.presensiMasuk = async (req, res) => {
         const status = cekStatusMasuk(shift, shift_detail);
         const waktu = new Date().toTimeString().slice(0, 8);
 
-        // 6. Simpan foto
-        const filename = `${id_users}_${tanggal_absensi}_masuk_${Date.now()}.jpg`;
-        const foto_path = saveFaceImage(foto_base64, filename);
+        // 6. Simpan foto (masuk_<nikrs>.png)
+        const foto_path = saveFaceImage(foto_base64, nikrs, 'masuk');
 
         // 7. Simpan presensi masuk
         await Attendance.create({
@@ -108,7 +107,7 @@ exports.presensiMasuk = async (req, res) => {
 exports.presensiPulang = async (req, res) => {
     try {
         // 🔐 Data user dari JWT
-        const { id_users, shift, shift_detail } = req.user;
+        const { id_users, nikrs, shift, shift_detail } = req.user;
 
         const {
             foto_base64,
@@ -142,7 +141,7 @@ exports.presensiPulang = async (req, res) => {
             });
         }
 
-        // 3. Tentukan tanggal absensi (sama dengan masuk)
+        // 3. Tentukan tanggal absensi
         const tanggal_absensi = getTanggalAbsensi(shift, 'pulang');
 
         // 4. Wajib sudah presensi masuk
@@ -177,9 +176,8 @@ exports.presensiPulang = async (req, res) => {
 
         const waktu = new Date().toTimeString().slice(0, 8);
 
-        // 6. Simpan foto
-        const filename = `${id_users}_${tanggal_absensi}_pulang_${Date.now()}.jpg`;
-        const foto_path = saveFaceImage(foto_base64, filename);
+        // 6. Simpan foto (pulang_<nikrs>.png)
+        const foto_path = saveFaceImage(foto_base64, nikrs, 'pulang');
 
         // 7. Simpan presensi pulang
         await Attendance.create({
